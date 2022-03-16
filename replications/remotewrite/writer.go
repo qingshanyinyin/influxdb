@@ -2,7 +2,6 @@ package remotewrite
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -164,7 +163,7 @@ func (w *writer) Write(data []byte, attempts int) (time.Duration, error) {
 	return waitTime, postWriteErr
 }
 
-// normalizeReponse returns a guaranteed non-nil value for *http.Response, and an extracted error message string for use
+// normalizeResponse returns a guaranteed non-nil value for *http.Response, and an extracted error message string for use
 // in logging. The returned bool indicates that the response is retryable - false means that the write request should be
 // aborted due to a malformed request.
 func normalizeResponse(r *http.Response, err error) (*http.Response, string, bool) {

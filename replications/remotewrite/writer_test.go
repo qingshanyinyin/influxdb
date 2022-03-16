@@ -63,7 +63,8 @@ func TestWrite(t *testing.T) {
 		w, configStore := testWriter(t)
 
 		configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(nil, wantErr)
-		require.Equal(t, wantErr, w.Write([]byte{}))
+		_, actualErr := w.Write([]byte{}, 1)
+		require.Equal(t, wantErr, actualErr)
 	})
 
 	t.Run("nil response from PostWrite", func(t *testing.T) {
@@ -74,7 +75,8 @@ func TestWrite(t *testing.T) {
 		w, configStore := testWriter(t)
 
 		configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(testConfig, nil)
-		require.Error(t, w.Write([]byte{}))
+		_, actualErr := w.Write([]byte{}, 1)
+		require.Error(t, actualErr)
 	})
 
 	t.Run("immediate good response", func(t *testing.T) {
@@ -89,7 +91,8 @@ func TestWrite(t *testing.T) {
 
 		configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(testConfig, nil)
 		configStore.EXPECT().UpdateResponseInfo(gomock.Any(), testID, http.StatusNoContent, "").Return(nil)
-		require.NoError(t, w.Write(testData))
+		_, actualErr := w.Write(testData, 0)
+		require.NoError(t, actualErr)
 	})
 
 	t.Run("error updating response info", func(t *testing.T) {
@@ -106,7 +109,8 @@ func TestWrite(t *testing.T) {
 
 		configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(testConfig, nil)
 		configStore.EXPECT().UpdateResponseInfo(gomock.Any(), testID, http.StatusNoContent, "").Return(wantErr)
-		require.Equal(t, wantErr, w.Write(testData))
+		_, actualErr := w.Write(testData, 1)
+		require.Equal(t, wantErr, actualErr)
 	})
 
 	t.Run("bad server responses that never succeed", func(t *testing.T) {
@@ -127,7 +131,8 @@ func TestWrite(t *testing.T) {
 
 				configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(testConfig, nil).Times(testAttempts)
 				configStore.EXPECT().UpdateResponseInfo(gomock.Any(), testID, status, invalidResponseCode(status).Error()).Return(nil).Times(testAttempts)
-				require.Equal(t, errors.New("maximum number of attempts exceeded"), w.Write(testData))
+				_, actualErr := w.Write(testData, testAttempts)
+				require.Equal(t, errors.New("maximum number of attempts exceeded"), actualErr)
 			})
 		}
 	})
@@ -164,7 +169,8 @@ func TestWrite(t *testing.T) {
 		configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(testConfig, nil).Times(attemptsBeforeSuccess)
 		configStore.EXPECT().UpdateResponseInfo(gomock.Any(), testID, badStatus, invalidResponseCode(badStatus).Error()).Return(nil).Times(attemptsBeforeSuccess - 1)
 		configStore.EXPECT().UpdateResponseInfo(gomock.Any(), testID, goodStatus, "").Return(nil)
-		require.NoError(t, w.Write(testData))
+		_, actualErr := w.Write(testData, 1)
+		require.NoError(t, actualErr)
 	})
 
 	t.Run("drops bad data after config is updated", func(t *testing.T) {
@@ -189,7 +195,8 @@ func TestWrite(t *testing.T) {
 		configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(testConfig, nil).Times(testAttempts - 1)
 		configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(updatedConfig, nil)
 		configStore.EXPECT().UpdateResponseInfo(gomock.Any(), testID, http.StatusBadRequest, invalidResponseCode(http.StatusBadRequest).Error()).Return(nil).Times(testAttempts)
-		require.NoError(t, w.Write(testData))
+		_, actualErr := w.Write(testData, 1)
+		require.NoError(t, actualErr)
 	})
 
 	t.Run("uses wait time from response header if present", func(t *testing.T) {
@@ -221,7 +228,8 @@ func TestWrite(t *testing.T) {
 
 		configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(testConfig, nil).Times(testAttempts)
 		configStore.EXPECT().UpdateResponseInfo(gomock.Any(), testID, http.StatusTooManyRequests, invalidResponseCode(http.StatusTooManyRequests).Error()).Return(nil).Times(testAttempts)
-		require.Equal(t, errors.New("maximum number of attempts exceeded"), w.Write(testData))
+		_, actualErr := w.Write(testData, 1)
+		require.Equal(t, errors.New("maximum number of attempts exceeded"), actualErr)
 	})
 
 	t.Run("can cancel with done channel", func(t *testing.T) {
@@ -242,7 +250,8 @@ func TestWrite(t *testing.T) {
 
 		configStore.EXPECT().GetFullHTTPConfig(gomock.Any(), testID).Return(testConfig, nil)
 		configStore.EXPECT().UpdateResponseInfo(gomock.Any(), testID, http.StatusInternalServerError, invalidResponseCode(http.StatusInternalServerError).Error()).Return(nil)
-		require.Equal(t, context.Canceled, w.Write(testData))
+		_, actualErr := w.Write(testData, 1)
+		require.Equal(t, context.Canceled, actualErr)
 	})
 }
 
@@ -336,7 +345,8 @@ func TestWrite_Metrics(t *testing.T) {
 			w.maximumAttemptsBeforeErr = maximumAttemptsBeforeErr
 
 			tt.registerExpectations(t, configStore, testConfig)
-			require.Equal(t, tt.wantWriteErr, w.Write(tt.data))
+			_, actualErr := w.Write(tt.data, 1)
+			require.Equal(t, tt.wantWriteErr, actualErr)
 			tt.checkMetrics(t, reg)
 		})
 	}
